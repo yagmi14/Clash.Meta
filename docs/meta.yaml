@@ -1,0 +1,469 @@
+mixed-port: 7890
+external-controller: 127.0.0.1:9090
+allow-lan: true
+find-process-mode: strict
+mode: rule
+log-level: debug
+ipv6: true
+
+geox-url:
+  geoip: "https://cdn.jsdelivr.net/gh/Loyalsoldier/v2ray-rules-dat@release/geoip.dat"
+  geosite: "https://cdn.jsdelivr.net/gh/Loyalsoldier/v2ray-rules-dat@release/geosite.dat"
+  mmdb: "https://cdn.jsdelivr.net/gh/Loyalsoldier/geoip@release/Country.mmdb"
+
+# 全局 TLS 指纹，优先低于 proxy 内的 client-fingerprint
+# 可选： "chrome","firefox","safari","ios","random","none" options.
+# Utls is currently support TLS transport in TCP/grpc/WS/HTTP for VLESS/Vmess and trojan.
+global-client-fingerprint: chrome
+
+# Tun 配置
+tun:
+  enable: true
+  stack: system # gvisor / lwip
+  dns-hijack:
+    - 0.0.0.0:53 # 需要劫持的 DNS
+  # auto-detect-interface: true # 自动识别出口网卡
+  # auto-route: true # 配置路由表
+  # mtu: 9000 # 最大传输单元
+  # strict_route: true # 将所有连接路由到tun来防止泄漏，但你的设备将无法其他设备被访问
+  inet4_route_address: # 启用 auto_route 时使用自定义路由而不是默认路由
+    - 0.0.0.0/1
+    - 128.0.0.0/1
+  inet6_route_address: # 启用 auto_route 时使用自定义路由而不是默认路由
+    - "::/1"
+    - "8000::/1"
+  # endpoint_independent_nat: false # 启用独立于端点的 NAT
+  # include_uid: # UID 规则仅在 Linux 下被支持，并且需要 auto_route
+  # - 0
+  # include_uid_range: # 限制被路由的的用户范围
+  # - 1000-99999
+  # exclude_uid: # 排除路由的的用户
+  #- 1000
+  # exclude_uid_range: # 排除路由的的用户范围
+  # - 1000-99999
+  
+  # Android 用户和应用规则仅在 Android 下被支持
+  # 并且需要 auto_route
+  
+  # include_android_user: # 限制被路由的 Android 用户
+  # - 0
+  # - 10
+  # include_package: # 限制被路由的 Android 应用包名
+  # - com.android.chrome
+  # exclude_package: # 排除被路由的 Android 应用包名
+  # - com.android.captiveportallogin
+
+#ebpf配置
+ebpf:
+  auto-redir: # redirect 模式，仅支持 TCP
+    - eth0
+  redirect-to-tun: # UDP+TCP 使用该功能请勿启用 auto-route
+    - eth0
+
+# 嗅探域名 可选配置
+sniffer:
+  enable: false
+  ## 对 redir-host 类型识别的流量进行强制嗅探
+  ## 如：Tun、Redir 和 TProxy 并 DNS 为 redir-host 皆属于
+  # force-dns-mapping: false
+  ## 对所有未获取到域名的流量进行强制嗅探
+  # parse-pure-ip: false
+  # 是否使用嗅探结果作为实际访问，默认 true
+  # 全局配置，优先级低于 sniffer.sniff 实际配置
+  override-destination: false
+  sniff: # TLS 默认如果不配置 ports 默认嗅探 443
+    TLS:
+    #  ports: [443, 8443]
+    
+    # 默认嗅探 80
+    HTTP: # 需要嗅探的端口
+      
+      ports: [80, 8080-8880]
+      # 可覆盖 sniffer.override-destination
+      override-destination: true
+  force-domain:
+    - +.v2ex.com
+  ## 对嗅探结果进行跳过
+  # skip-domain:
+  #   - Mijia Cloud
+  # 需要嗅探协议
+  # 已废弃，若 sniffer.sniff 配置则此项无效
+  sniffing:
+    - tls
+    - http
+  # 强制对此域名进行嗅探
+  
+  # 仅对白名单中的端口进行嗅探，默认为 443，80
+  # 已废弃，若 sniffer.sniff 配置则此项无效
+  port-whitelist:
+    - "80"
+    - "443"
+    # - 8000-9999
+
+# tunnels: # one line config
+  # - tcp/udp,127.0.0.1:6553,114.114.114.114:53,proxy
+  # - tcp,127.0.0.1:6666,rds.mysql.com:3306,vpn
+  # full yaml config
+  # - network: [tcp, udp]
+    # address: 127.0.0.1:7777
+    # target: target.com
+    # proxy: proxy
+
+
+# DNS配置
+dns:
+  enable: true # 关闭将使用系统 DNS
+  prefer-h3: true # 开启 DoH 支持 HTTP/3，将并发尝试
+  listen: 0.0.0.0:53 # 开启 DNS 服务器监听
+  ipv6: true # false 将返回 AAAA 的空结果
+  # ipv6-timeout: 300 # 单位：ms，内部双栈并发时，向上游查询 AAAA 时，等待 AAAA 的时间，默认 100ms
+  # 用于解析 nameserver，fallback 以及其他DNS服务器配置的，DNS 服务域名
+  # 只能使用纯 IP 地址，可使用加密 DNS
+  default-nameserver:
+    - 114.114.114.114
+    - 8.8.8.8
+    - tls://1.12.12.12:853
+    - tls://223.5.5.5:853
+  enhanced-mode: fake-ip # or redir-host
+  
+  fake-ip-range: 198.18.0.1/16 # fake-ip 池设置
+  
+  # use-hosts: true # 查询 hosts
+  
+  # 配置不使用fake-ip的域名
+  # fake-ip-filter:
+  #   - '*.lan'
+  #   - localhost.ptlogin2.qq.com
+  
+  # DNS主要域名配置
+  # 支持 UDP，TCP，DoT，DoH，DoQ
+  # 这部分为主要 DNS 配置，影响所有直连，确保使用对大陆解析精准的 DNS
+  nameserver:
+    - 114.114.114.114 # default value
+    - 8.8.8.8 # default value
+    - tls://223.5.5.5:853 # DNS over TLS
+    - https://doh.pub/dns-query # DNS over HTTPS
+    - https://dns.alidns.com/dns-query#h3=true # 强制 HTTP/3，与 perfer-h3 无关，强制开启 DoH 的 HTTP/3 支持，若不支持将无法使用
+    - https://mozilla.cloudflare-dns.com/dns-query#DNS&h3=true # 指定策略组和使用 HTTP/3
+    - dhcp://en0 # dns from dhcp
+    - quic://dns.adguard.com:784 # DNS over QUIC
+    # - '8.8.8.8#en0' # 兼容指定DNS出口网卡
+  
+  # 当配置 fallback 时，会查询 nameserver 中返回的 IP 是否为 CN，非必要配置
+  # 当不是 CN，则使用 fallback 中的 DNS 查询结果
+  # 确保配置 fallback 时能够正常查询
+  # fallback:
+  #   - tcp://1.1.1.1
+  #   - 'tcp://1.1.1.1#PROXY' # 指定 DNS 过代理查询，ProxyGroupName AGVDbNVutgwiep6615bjTJnQkScwWuUEMuU95NredRG5
+  #   - 'tcp://8.8.4.4#PROXY' # 指定 DNS 过代理查询，ProxyGroupName AGVDbNVutgwiep6615bjTJnQkScwWuUEMuU95NredRG5
+
+  # 专用于节点域名解析的 DNS 服务器，非必要配置项
+  # 配置服务器若查询失败将使用 nameserver，非并发查询
+  # proxy-server-nameserver:
+  # - https://dns.google/dns-query
+  # - tls://one.one.one.one
+  
+  # 配置 fallback 使用条件
+  # fallback-filter:
+  #   geoip: true # 配置是否使用 geoip
+  #   geoip-code: CN # 当 nameserver 域名的 IP 查询 geoip 库为 CN 时，不使用 fallback 中的 DNS 查询结果
+  #   配置强制 fallback，优先于 IP 判断，具体分类自行查看 geosite 库
+  #   geosite:
+  #     - gfw
+  #     - "!cn"
+  #   如果不匹配 ipcidr 则使用 nameservers 中的结果
+  #   ipcidr:
+  #     - 240.0.0.0/4
+  #   domain:
+  #     - '+.google.com'
+  #     - '+.facebook.com'
+  #     - '+.youtube.com'
+  #     - '+.google.cn'
+  
+  # 配置查询域名使用的 DNS 服务器
+  nameserver-policy:
+    '+.google.cn': [tls://8.8.4.4, https://1.0.0.1/dns-query]
+    'geosite:geolocation-!cn': [tls://8.8.4.4, https://1.0.0.1/dns-query]
+    'www.baidu.com': '114.114.114.114'
+    '+.internal.crop.com': '10.0.0.1'
+    "geosite:cn,private":
+      - https://doh.pub/dns-query
+      - https://dns.alidns.com/dns-query
+  #   "www.baidu.com,+.google.cn": [223.5.5.5, https://dns.alidns.com/dns-query]
+    ## global，dns 为 rule-providers 中的名为 global 和 dns 规则订阅，
+    ## 且 behavior 必须为 domain/classical，当为 classical 时仅会生效域名类规则 
+    # "rule-set:global,dns": 8.8.8.8
+
+proxies:
+  - name: Apernet-HKG
+    type: vless
+    server: 23.247.139.49
+    port: 443
+    uuid: f8b5cc81-d25c-4d22-92b6-d10a055f7e98
+    network: tcp
+    tls: true
+    udp: true
+    xudp: true
+    flow: xtls-rprx-vision
+    servername: www.litv.tv
+    reality-opts:
+      public-key: "h2R5BJbjYH0Le3R8ilNqrRKjKQ0WRVjjDKCnRgTEVFk"
+      short-id: "4c10a4acb2917613"
+    client-fingerprint: chrome
+  - name: Evoxt-HKG
+    type: vless
+    server: 166.88.141.112
+    port: 443
+    uuid: f8b5cc81-d25c-4d22-92b6-d10a055f7e98
+    network: tcp
+    tls: true
+    udp: true
+    xudp: true
+    flow: xtls-rprx-vision
+    servername: www.litv.tv
+    reality-opts:
+      public-key: "h2R5BJbjYH0Le3R8ilNqrRKjKQ0WRVjjDKCnRgTEVFk"
+      short-id: "4c10a4acb2917613"
+    client-fingerprint: chrome
+  - name: WebHorizon-SIN
+    type: ss
+    server: sg.webhorizon.wx2021.buzz
+    port: 20021
+    cipher: aes-128-gcm
+    password: "W46bWMw2ZfuN9BzV2iTjLjp6INdT1oZLZ8WfpLTPRl4="
+    udp: true
+    udp-over-tcp: true
+
+proxy-groups:
+  - name: PROXY
+    type: select
+    proxies:
+      - Apernet-HKG
+      - Evoxt-HKG
+      - WebHorizon-SIN <-> Evoxt-HKG
+  - name: YouTube
+    type: select
+    proxies:
+      - PROXY
+      - Apernet-HKG
+      - Evoxt-HKG
+      - WebHorizon-SIN <-> Evoxt-HKG
+  - name: Google
+    type: select
+    proxies:
+      - PROXY
+      - Apernet-HKG
+      - Evoxt-HKG
+      - WebHorizon-SIN <-> Evoxt-HKG
+  - name: NETFLIX
+    type: select
+    proxies:
+      - PROXY
+      - Apernet-HKG
+      - Evoxt-HKG
+      - WebHorizon-SIN <-> Evoxt-HKG
+  - name: Twitter
+    type: select
+    proxies:
+      - PROXY
+      - Apernet-HKG
+      - Evoxt-HKG
+      - WebHorizon-SIN <-> Evoxt-HKG
+  - name: Spotify
+    type: select
+    proxies:
+      - PROXY
+      - Apernet-HKG
+      - Evoxt-HKG
+      - WebHorizon-SIN <-> Evoxt-HKG
+  - name: Disney+
+    type: select
+    proxies:
+      - PROXY
+      - Apernet-HKG
+      - Evoxt-HKG
+      - WebHorizon-SIN <-> Evoxt-HKG
+  - name: Telegram
+    type: select
+    proxies:
+      - PROXY
+      - Apernet-HKG
+      - Evoxt-HKG
+      - WebHorizon-SIN <-> Evoxt-HKG
+  - name: Microsoft
+    type: select
+    proxies:
+      - PROXY
+      - Apernet-HKG
+      - Evoxt-HKG
+      - WebHorizon-SIN <-> Evoxt-HKG
+  - name: JavDB
+    type: select
+    proxies:
+      - PROXY
+      - Apernet-HKG
+      - Evoxt-HKG
+      - WebHorizon-SIN <-> Evoxt-HKG
+  - name: TikTok
+    type: select
+    proxies:
+      - PROXY
+      - Apernet-HKG
+      - Evoxt-HKG
+      - WebHorizon-SIN <-> Evoxt-HKG
+  - name: OpenAI
+    type: select
+    proxies:
+      - PROXY
+      - Apernet-HKG
+      - Evoxt-HKG
+      - WebHorizon-SIN <-> Evoxt-HKG
+  - name: Apple
+    type: select
+    proxies:
+      - PROXY
+      - Apernet-HKG
+      - Evoxt-HKG
+      - WebHorizon-SIN <-> Evoxt-HKG
+  - name: Cloudflare
+    type: select
+    proxies:
+      - PROXY
+      - Apernet-HKG
+      - Evoxt-HKG
+      - WebHorizon-SIN <-> Evoxt-HKG
+  - name: 哔哩哔哩
+    type: select
+    proxies:
+      - PROXY
+      - Apernet-HKG
+      - Evoxt-HKG
+      - WebHorizon-SIN <-> Evoxt-HKG
+  # Traffic: clash <-> http <-> vmess <-> ss1 <-> ss2 <-> Internet
+  - name: WebHorizon-SIN <-> Evoxt-HKG
+    type: relay
+    proxies:
+      - Evoxt-HKG
+      - WebHorizon-SIN
+
+rule-providers:
+  reject:
+    type: http
+    behavior: domain
+    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/reject.txt"
+    path: ./ruleset/reject.yaml
+    interval: 86400
+
+  icloud:
+    type: http
+    behavior: domain
+    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/icloud.txt"
+    path: ./ruleset/icloud.yaml
+    interval: 86400
+
+  proxy:
+    type: http
+    behavior: domain
+    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/proxy.txt"
+    path: ./ruleset/proxy.yaml
+    interval: 86400
+
+  direct:
+    type: http
+    behavior: domain
+    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/direct.txt"
+    path: ./ruleset/direct.yaml
+    interval: 86400
+
+  private:
+    type: http
+    behavior: domain
+    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/private.txt"
+    path: ./ruleset/private.yaml
+    interval: 86400
+
+  gfw:
+    type: http
+    behavior: domain
+    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/gfw.txt"
+    path: ./ruleset/gfw.yaml
+    interval: 86400
+
+  tld-not-cn:
+    type: http
+    behavior: domain
+    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/tld-not-cn.txt"
+    path: ./ruleset/tld-not-cn.yaml
+    interval: 86400
+
+  telegramcidr:
+    type: http
+    behavior: ipcidr
+    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/telegramcidr.txt"
+    path: ./ruleset/telegramcidr.yaml
+    interval: 86400
+
+  cncidr:
+    type: http
+    behavior: ipcidr
+    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/cncidr.txt"
+    path: ./ruleset/cncidr.yaml
+    interval: 86400
+
+  lancidr:
+    type: http
+    behavior: ipcidr
+    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/lancidr.txt"
+    path: ./ruleset/lancidr.yaml
+    interval: 86400
+
+  applications:
+    type: http
+    behavior: classical
+    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/applications.txt"
+    path: ./ruleset/applications.yaml
+    interval: 86400
+
+rules:
+  - RULE-SET,applications,DIRECT
+  - DOMAIN,clash.razord.top,DIRECT
+  - DOMAIN,yacd.haishan.me,DIRECT
+  - RULE-SET,private,DIRECT
+  - RULE-SET,reject,REJECT
+  - RULE-SET,lancidr,DIRECT
+
+  - DOMAIN-SUFFIX,rfchost.com,PROXY
+  - DOMAIN,speedtestbb.hk.chinamobile.com,PROXY
+
+  - GEOSITE,youtube,YouTube
+  - GEOSITE,google,Google
+  - GEOSITE,netflix,NETFLIX
+  - GEOSITE,twitter,Twitter
+  - GEOSITE,bilibili,哔哩哔哩
+  - GEOSITE,spotify,Spotify
+  - GEOSITE,disney,Disney+
+  - GEOSITE,telegram,Telegram
+  - GEOSITE,microsoft,Microsoft
+  - GEOSITE,javdb,JavDB
+  - GEOSITE,openai,OpenAI
+  - GEOSITE,tiktok,TikTok
+  - GEOSITE,apple,Apple
+  - GEOSITE,cloudflare,Cloudflare
+  - GEOIP,google,Google
+  - GEOIP,netflix,NETFLIX
+  - GEOIP,telegram,Telegram
+  - GEOIP,twitter,Twitter
+  - RULE-SET,telegramcidr,Telegram
+
+  - RULE-SET,cncidr,DIRECT
+  - RULE-SET,proxy,PROXY
+
+  - GEOSITE,geolocation-!cn,PROXY
+
+  - RULE-SET,direct,DIRECT
+  
+  - GEOSITE,CN,DIRECT
+
+  - GEOIP,LAN,DIRECT
+  - GEOIP,CN,DIRECT
+  - MATCH,PROXY
